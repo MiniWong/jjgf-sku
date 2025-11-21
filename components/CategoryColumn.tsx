@@ -1,11 +1,13 @@
+
 import React, { useState } from 'react';
-import { Category } from '../types';
-import { Plus, Trash2, CheckCircle2, X } from 'lucide-react';
+import { Category, Option } from '../types';
+import { Plus, Trash2, CheckCircle2, Check, X } from 'lucide-react';
 
 interface CategoryColumnProps {
     category: Category;
     onToggleOption: (categoryId: string, optionId: string) => void;
     onAddOption: (categoryId: string, code: string, abbr: string) => void;
+    onUpdateOption: (categoryId: string, optionId: string, code: string, abbr: string) => void;
     onDeleteOption: (categoryId: string, optionId: string) => void;
     index: number;
 }
@@ -14,12 +16,19 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
     category, 
     onToggleOption, 
     onAddOption, 
+    onUpdateOption,
     onDeleteOption,
     index
 }) => {
+    // Add State
     const [isAdding, setIsAdding] = useState(false);
     const [newCode, setNewCode] = useState('');
     const [newAbbr, setNewAbbr] = useState('');
+
+    // Edit State
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editCode, setEditCode] = useState('');
+    const [editAbbr, setEditAbbr] = useState('');
 
     const handleAdd = () => {
         if (!newCode.trim()) return;
@@ -27,6 +36,23 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
         setNewCode('');
         setNewAbbr('');
         setIsAdding(false);
+    };
+
+    const startEditing = (option: Option) => {
+        setEditingId(option.id);
+        setEditCode(option.code);
+        setEditAbbr(option.abbr);
+    };
+
+    const saveEditing = () => {
+        if (editingId && editCode.trim()) {
+            onUpdateOption(category.id, editingId, editCode.trim(), editAbbr.trim());
+            setEditingId(null);
+        }
+    };
+
+    const cancelEditing = () => {
+        setEditingId(null);
     };
 
     const isImageCategory = category.key === 'image';
@@ -45,47 +71,96 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto p-4 pt-0 space-y-3 custom-scrollbar">
-                {category.options.map(option => (
-                    <div 
-                        key={option.id}
-                        onClick={() => onToggleOption(category.id, option.id)}
-                        className={`
-                            group relative flex items-center justify-between p-4 rounded-xl cursor-pointer border transition-all duration-200 select-none
-                            ${option.selected 
-                                ? 'bg-[#111927] border-sky-900/50 shadow-[0_0_0_1px_rgba(14,165,233,0.2)]' 
-                                : 'bg-[#18181b] border-[#27272a] hover:border-[#3f3f46]'}
-                        `}
-                    >
-                        <div className="flex flex-col gap-1">
-                            <span className={`font-bold text-sm ${option.selected ? 'text-white' : 'text-gray-200'}`}>
-                                {option.code}
-                            </span>
-                            <span className={`text-xs ${option.selected ? 'text-gray-400' : 'text-gray-500'}`}>
-                                {isImageCategory ? (option.abbr || option.code) : (option.abbr || 'N/A')}
-                            </span>
-                        </div>
+            {/* Added min-h-[450px] and max-h-[800px] to ensure columns grow with content but eventually scroll */}
+            <div className="flex-1 overflow-y-auto p-4 pt-0 space-y-3 custom-scrollbar min-h-[450px] max-h-[800px]">
+                {category.options.map(option => {
+                    const isEditing = editingId === option.id;
 
-                        <div className="flex items-center">
-                             {option.selected ? (
-                                <CheckCircle2 size={18} className="text-sky-500" />
+                    return (
+                        <div 
+                            key={option.id}
+                            onClick={() => !isEditing && onToggleOption(category.id, option.id)}
+                            onDoubleClick={() => !isEditing && startEditing(option)}
+                            className={`
+                                group relative flex items-center justify-between p-4 rounded-xl border transition-all duration-200 select-none
+                                ${isEditing 
+                                    ? 'bg-[#18181b] border-sky-500/50 ring-1 ring-sky-500/20 cursor-default' 
+                                    : option.selected 
+                                        ? 'bg-[#111927] border-sky-900/50 shadow-[0_0_0_1px_rgba(14,165,233,0.2)] cursor-pointer' 
+                                        : 'bg-[#18181b] border-[#27272a] hover:border-[#3f3f46] cursor-pointer'
+                                }
+                            `}
+                        >
+                            {isEditing ? (
+                                /* Edit Mode */
+                                <div className="flex flex-col gap-2 w-full" onClick={e => e.stopPropagation()}>
+                                     <div className="flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            autoFocus
+                                            value={editCode}
+                                            onChange={(e) => setEditCode(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if(e.key === 'Enter') saveEditing();
+                                                if(e.key === 'Escape') cancelEditing();
+                                            }}
+                                            className="w-full bg-[#09090b] text-white px-2 py-1 text-sm border border-[#3f3f46] rounded focus:outline-none focus:border-sky-500 font-mono"
+                                            placeholder="Code"
+                                        />
+                                        {!isImageCategory && (
+                                            <input 
+                                                type="text" 
+                                                value={editAbbr}
+                                                onChange={(e) => setEditAbbr(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if(e.key === 'Enter') saveEditing();
+                                                    if(e.key === 'Escape') cancelEditing();
+                                                }}
+                                                className="w-full bg-[#09090b] text-white px-2 py-1 text-sm border border-[#3f3f46] rounded focus:outline-none focus:border-sky-500"
+                                                placeholder="Abbr"
+                                            />
+                                        )}
+                                     </div>
+                                     <div className="flex items-center justify-end gap-2">
+                                         <button onClick={cancelEditing} className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors"><X size={14} /></button>
+                                         <button onClick={saveEditing} className="p-1 bg-sky-600/20 hover:bg-sky-600 text-sky-500 hover:text-white rounded transition-colors"><Check size={14} /></button>
+                                     </div>
+                                </div>
                             ) : (
-                                <div className="w-[18px] h-[18px] rounded-full border border-[#3f3f46] group-hover:border-gray-500"></div>
+                                /* View Mode */
+                                <>
+                                    <div className="flex flex-col gap-1">
+                                        <span className={`font-bold text-lg tracking-wide ${option.selected ? 'text-white' : 'text-gray-200'}`}>
+                                            {option.code}
+                                        </span>
+                                        <span className={`text-sm font-medium ${option.selected ? 'text-gray-400' : 'text-gray-500'}`}>
+                                            {isImageCategory ? (option.abbr || option.code) : (option.abbr || 'N/A')}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center">
+                                        {option.selected ? (
+                                            <CheckCircle2 size={20} className="text-sky-500" />
+                                        ) : (
+                                            <div className="w-[20px] h-[20px] rounded-full border border-[#3f3f46] group-hover:border-gray-500"></div>
+                                        )}
+                                    </div>
+
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onDeleteOption(category.id, option.id);
+                                        }}
+                                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/10 rounded-md text-gray-600 hover:text-red-400 transition-all"
+                                        title="Delete"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                </>
                             )}
                         </div>
-
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onDeleteOption(category.id, option.id);
-                            }}
-                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/10 rounded-md text-gray-600 hover:text-red-400 transition-all"
-                            title="Delete"
-                        >
-                            <Trash2 size={12} />
-                        </button>
-                    </div>
-                ))}
+                    );
+                })}
 
                 {/* Inline Add Form / Add Button Slot */}
                 {isAdding ? (
@@ -99,7 +174,11 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
                                     placeholder="Code (e.g. K1)"
                                     value={newCode}
                                     onChange={(e) => setNewCode(e.target.value)}
-                                    className="w-full bg-[#09090b] text-white px-3 py-2 text-xs border border-[#3f3f46] rounded-lg focus:outline-none focus:border-sky-500 placeholder-gray-600 font-mono"
+                                    onKeyDown={(e) => {
+                                        if(e.key === 'Enter') handleAdd();
+                                        if(e.key === 'Escape') setIsAdding(false);
+                                    }}
+                                    className="w-full bg-[#09090b] text-white px-3 py-2 text-sm border border-[#3f3f46] rounded-lg focus:outline-none focus:border-sky-500 placeholder-gray-600 font-mono"
                                 />
                              </div>
                             {!isImageCategory && (
@@ -110,7 +189,11 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
                                         placeholder="Abbr (e.g. Black)"
                                         value={newAbbr}
                                         onChange={(e) => setNewAbbr(e.target.value)}
-                                        className="w-full bg-[#09090b] text-white px-3 py-2 text-xs border border-[#3f3f46] rounded-lg focus:outline-none focus:border-sky-500 placeholder-gray-600"
+                                        onKeyDown={(e) => {
+                                            if(e.key === 'Enter') handleAdd();
+                                            if(e.key === 'Escape') setIsAdding(false);
+                                        }}
+                                        className="w-full bg-[#09090b] text-white px-3 py-2 text-sm border border-[#3f3f46] rounded-lg focus:outline-none focus:border-sky-500 placeholder-gray-600"
                                     />
                                 </div>
                             )}

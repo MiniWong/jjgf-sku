@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { DEFAULT_CATEGORIES, Category } from './types';
 import { generateSkus } from './utils/skuLogic';
@@ -6,7 +7,7 @@ import { ResultTable } from './components/ResultTable';
 import { Settings, Sparkles, Trash2, Save, Upload, AlertCircle, X, Layers, GitMerge } from 'lucide-react';
 import { generateSampleData } from './services/geminiService';
 
-const STORAGE_KEY = 'sku-generator-data-v3';
+const STORAGE_KEY = 'sku-generator-data-v4';
 
 export default function App() {
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
@@ -47,6 +48,20 @@ export default function App() {
                     abbr,
                     selected: true
                 }]
+            };
+        }
+        return cat;
+    }));
+  };
+
+  const handleUpdateOption = (categoryId: string, optionId: string, newCode: string, newAbbr: string) => {
+    setCategories(prev => prev.map(cat => {
+        if (cat.id === categoryId) {
+            return {
+                ...cat,
+                options: cat.options.map(opt => 
+                    opt.id === optionId ? { ...opt, code: newCode, abbr: newAbbr } : opt
+                )
             };
         }
         return cat;
@@ -156,10 +171,10 @@ export default function App() {
   const results = useMemo(() => generateSkus(categories), [categories]);
 
   return (
-    <div className="flex flex-col h-screen bg-[#09090b] text-gray-200 font-sans selection:bg-sky-500/30 overflow-hidden">
+    <div className="flex flex-col min-h-screen bg-[#09090b] text-gray-200 font-sans selection:bg-sky-500/30">
       
       {/* --- Top Bar --- */}
-      <header className="flex items-center justify-between px-8 py-6 bg-[#09090b] shrink-0 z-20">
+      <header className="flex items-center justify-between px-8 py-6 bg-[#09090b] shrink-0 z-20 sticky top-0 border-b border-[#27272a]/50 backdrop-blur-xl bg-opacity-80">
         <div className="flex items-center gap-4">
             <div className="bg-gradient-to-br from-indigo-500 to-sky-600 text-white p-2.5 rounded-xl shadow-lg shadow-sky-900/20">
                 <Layers size={24} />
@@ -192,7 +207,7 @@ export default function App() {
 
       {/* --- Settings Dropdown --- */}
       {isSettingsOpen && (
-          <div className="absolute top-24 right-8 z-50 w-72 bg-[#18181b] rounded-xl shadow-2xl border border-[#27272a] p-1 animate-in fade-in zoom-in-95">
+          <div className="fixed top-24 right-8 z-50 w-72 bg-[#18181b] rounded-xl shadow-2xl border border-[#27272a] p-1 animate-in fade-in zoom-in-95">
               <div className="p-2 pb-0">
                   <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest px-2 mb-2">Data Controls</h3>
               </div>
@@ -219,51 +234,51 @@ export default function App() {
       )}
 
       {/* --- Main Content --- */}
-      <main className="flex-1 flex flex-col overflow-hidden relative">
+      <main className="flex-1 relative px-8 pb-10 pt-2 flex flex-col gap-8 max-w-[1920px] mx-auto w-full">
          {/* Background Gradient */}
          <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <div className="absolute top-[-10%] left-[20%] w-[600px] h-[600px] bg-sky-900/10 rounded-full blur-[120px]"></div>
             <div className="absolute bottom-[-10%] right-[20%] w-[600px] h-[600px] bg-indigo-900/10 rounded-full blur-[120px]"></div>
          </div>
-
-        <div className="flex flex-col h-full px-8 pb-8 gap-6 z-10 max-w-[1920px] mx-auto w-full">
             
-            {/* Section Header */}
-            <div className="flex-shrink-0 flex items-center justify-between mt-2">
-                <div className="flex items-center gap-3 text-white">
-                     <div className="bg-purple-500/10 p-1.5 rounded-lg text-purple-400">
-                         <GitMerge size={18} />
-                     </div>
-                     <h2 className="text-lg font-bold">字段配置</h2>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-[#18181b] border border-[#27272a] rounded-full text-xs text-gray-500 font-medium">
-                     <GitMerge size={14} className="text-orange-500" />
-                     <span>从左至右组合生成</span>
-                </div>
+         {/* Section Header */}
+         <div className="flex-shrink-0 flex items-center justify-between z-10">
+            <div className="flex items-center gap-3 text-white">
+                 <div className="bg-purple-500/10 p-1.5 rounded-lg text-purple-400">
+                     <GitMerge size={18} />
+                 </div>
+                 <h2 className="text-lg font-bold">字段配置</h2>
             </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#18181b] border border-[#27272a] rounded-full text-xs text-gray-500 font-medium">
+                 <GitMerge size={14} className="text-orange-500" />
+                 <span>从左至右组合生成</span>
+            </div>
+         </div>
             
-            {/* Top: Field Configuration */}
-            <div className="flex-shrink-0 h-[45%] min-h-[300px]">
-                <div className="grid grid-cols-5 gap-4 h-full w-full">
-                    {categories.map((category, idx) => (
-                        <div className="h-full min-w-0" key={category.id}>
-                            <CategoryColumn 
-                                category={category}
-                                index={idx}
-                                onToggleOption={handleToggleOption}
-                                onAddOption={handleAddOption}
-                                onDeleteOption={handleDeleteOption}
-                            />
-                        </div>
-                    ))}
-                </div>
+         {/* Top: Field Configuration */}
+         {/* Layout: Auto height, Grid expands based on content */}
+         <div className="w-full z-10">
+            <div className="grid grid-cols-5 gap-4 w-full">
+                {categories.map((category, idx) => (
+                    <div className="min-w-0" key={category.id}>
+                        <CategoryColumn 
+                            category={category}
+                            index={idx}
+                            onToggleOption={handleToggleOption}
+                            onAddOption={handleAddOption}
+                            onUpdateOption={handleUpdateOption}
+                            onDeleteOption={handleDeleteOption}
+                        />
+                    </div>
+                ))}
             </div>
+         </div>
 
-            {/* Bottom: Results */}
-            <div className="flex-1 min-h-0">
-                <ResultTable results={results} />
-            </div>
-        </div>
+         {/* Bottom: Results */}
+         {/* Layout: Fixed height for the table viewer, creating a stable window below the growing config section */}
+         <div className="w-full h-[600px] z-10">
+            <ResultTable results={results} />
+         </div>
       </main>
     </div>
   );
